@@ -1,0 +1,85 @@
+---
+title: "How Effective is Principal Component Analysis?"
+author: "Zach Schuster"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+I'd like to understand how effective preprocessing a data set using PCA is for binary classification. To do this, I will use a data set with information on pulsar stars and a binary label. The data can be found [here on Kaggle](https://www.kaggle.com/pavanraj159/predicting-a-pulsar-star).
+
+In addition, I will use the data.table package for any necessary data manipulation.
+
+***
+
+```{r read in data}
+require(data.table, quietly = TRUE)
+stars = fread("pulsar_stars.csv", header = TRUE)
+
+# take a look at the data
+knitr::kable(head(stars), digits = 2)
+```
+
+For more efficient use of space, I will rename the columns
+
+```{r}
+new_names = c("mean_IP","sd_IP","ek_IP","skew_IP",
+              "mean_DM-SNR", "sd_DM-SNR", "ek_DM-SNR", "skew_DM-SNR",
+              "target")
+setnames(stars, names(stars), new_names)
+```
+
+
+It looks like we have 8 numeric columns of predictor variables. When looking further, there are two sets of 4 columns that take measurements on the "integrated profile" and the "DM-SNR". It is possible that variables are correlated with eachother. 
+
+```{r plot pairs}
+
+GGally::ggpairs(stars[, !"target"])
+```
+
+As we expected, measures related to either the integrated profile or DM-SNR are highly correlated while their is not much correlation between measures on integrated profile and measures on SM-SNR. 
+
+This may be a good scenario for PCA!
+
+***
+
+### Class Distribution
+
+Something we should note, and an added complication is the imbalanced class distribution.
+
+```{r}
+table(stars$target)
+
+round(table(stars$target)/length(stars$target), 3)*100
+```
+
+Here we see that only 9.2% of observations are actually pulsar stars! This provides an opportunity test out some sort of sampling.
+
+## PCA
+
+For the sake of learning, let's manually run PCA (except for the eigen decomposition!) and project into 8 dimensions (the same as the original data set).
+
+```{r compute PCA}
+# split data into target and covariates
+target = stars[["target"]]
+X = stars[, !"target"]
+
+# compute covariance matrix
+cov_X = cov(X)
+
+# compute eigen vals and eigen vectors
+eigens = eigen(cov_X)
+
+PCA = as.data.table(cbind(scale(X, scale = FALSE) %*% eigens$vectors, target))
+setnames(PCA, names(PCA), c(paste("pc", 1:8, sep = "_"), "target"))
+
+# take a look at the head of our new data set
+knitr::kable(head(PCA), digits = 2,
+             caption = "Principle Components")
+```
+
+## Cumulative Variance Explained by Component
