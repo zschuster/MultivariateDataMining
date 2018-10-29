@@ -275,4 +275,6 @@ c(AUC = performance(pred_obj, measure = "auc")@y.values[[1]])
 
 ```
 
-An AUC of .97 is exceptional. That being said, using only 2 features instead of 8, we were able to get an AUC within .03 (.97-.94) of the model built on the entire data set!
+An AUC of .97 is exceptional. That being said, using only 2 features instead of 8, we were able to get an AUC within .03 (.97-.94) of the model built on the entire data set! 
+
+This is a great demonstration of the power of PCA for the purpose of dimension reduction.
