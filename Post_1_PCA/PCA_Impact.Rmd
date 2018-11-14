@@ -2,7 +2,7 @@
 title: "How Effective is Principal Component Analysis?"
 author: "Zach Schuster"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
-output: html_document
+output: rmarkdown::github_document
 ---
 
 ```{r setup, include=FALSE}
