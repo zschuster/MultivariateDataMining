@@ -8,13 +8,27 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(data.table)
+library(rgdal, quietly = TRUE)
+library(ggmap, quietly = TRUE)
 ```
 
+The purpose of this file is to explore and visualize the ebola outbreaks during 2008 and 2009. The main two files being used are:
+* historical_spread_points.shp
+* historical_spread_polygons.shp
+
+
+First read in the data
+
 ```{r}
-kiva = fread("kivaData_augmented.csv")
+ebolaPoints = readOGR(
+  dsn = "~/Documents/BZAN552/MultivariateDataMining/shpFiles/points",
+  layer = "historical_spread_points"
+  )
 
-
-
+ebolaPoly = readOGR(
+  dsn = "~/Documents/BZAN552/MultivariateDataMining/shpFiles/polygons",
+  layer = "historical_spread_polygons"
+)
 
 ```
 

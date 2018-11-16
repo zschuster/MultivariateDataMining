@@ -2,5 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-kivaData_augmented.csv
-MPIData_augmented.csv
+historical_spread_points.shp
+historical_spread_polygons.shp
