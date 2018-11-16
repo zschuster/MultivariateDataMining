@@ -13,6 +13,7 @@ library(ggmap, quietly = TRUE)
 ```
 
 The purpose of this file is to explore and visualize the ebola outbreaks during 2008 and 2009. The main two files being used are:
+
 * historical_spread_points.shp
 * historical_spread_polygons.shp
 
