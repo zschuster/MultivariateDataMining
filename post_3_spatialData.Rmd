@@ -8,28 +8,184 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(data.table)
-library(rgdal, quietly = TRUE)
-library(ggmap, quietly = TRUE)
+library(ggmap)
 ```
 
-The purpose of this file is to explore and visualize the ebola outbreaks during 2008 and 2009. The main two files being used are:
+The purpose of this file is to explore and visualize US mass shootings between the last quarter of 2011 and the first day of 2015. The data used is below:
 
-* historical_spread_points.shp
-* historical_spread_polygons.shp
+* MassShootingsDataset.csv
 
+In addition, we will call the below API to query coordinates when they are missing but we have the location.
 
-First read in the data
+* Texas A&M Geo Services
+
+First read in the data and explore
 
 ```{r}
-ebolaPoints = readOGR(
-  dsn = "~/Documents/BZAN552/MultivariateDataMining/shpFiles/points",
-  layer = "historical_spread_points"
-  )
+shootings = fread("Mass_Shootings_Dataset.csv", header = TRUE,
+                  na.strings = c(""))
 
-ebolaPoly = readOGR(
-  dsn = "~/Documents/BZAN552/MultivariateDataMining/shpFiles/polygons",
-  layer = "historical_spread_polygons"
-)
+# How many na values are there?
+vapply(shootings, function(x) sum(is.na(x)),
+       FUN.VALUE = integer(1))
+```
+
+We can see that we have 20 rows where longitute and latitude are missing, but the location is present. Can we query an API to find these coordinates?
+
+```{r, include=FALSE}
+key = readLines("apiKey.txt")
+```
+
+
+
+To do so, we will subset out the rows we need to fill in and then bind them back to the original data once we have a full data set.
+
+```{r}
+to_fill = shootings[is.na(Latitude) | is.na(Longitude)]
+
+# remove to_fill rows from shootings
+shootings = shootings[!to_fill, on = names(shootings)]
+
+# There should not be any overlap between to_fill and shootings
+intersect(to_fill, shootings)
+```
+
+Good! There is no overlap between the two tables. Now we can write code to fill in the missing coordinates
+
+Just a few more steps. It'll be easier when we query to have a city and a state column...
+
+```{r}
+cityState = tstrsplit(to_fill$Location, split = ",")
+```
+
+We can write a function where we will feed in a vector of cities and a vector of states and get back a list of latitudes and longitudes.
+
+```{r }
+getCoords = function(City, State){
+  
+  #flatten City and State if need be
+  City = unlist(City)
+  State = unlist(State)
+  
+  # we need to replace any spaces in the categories with "%20"
+  City = gsub("\\s+", "%20", trimws(City))
+  State = gsub("\\s+", "%20", trimws(State))
+  
+  # make sure city and state are of equal length
+  stopifnot(length(City) == length(State))
+  
+  # define constants
+  baseQuery = "https://geoservices.tamu.edu/Services/Geocode/WebService/GeocoderWebServiceHttpNonParsed_V04_01.aspx?"
+  apiKey = paste("apiKey=", key, sep = "")
+  version = "version=4.01"
+  format = "format=csv"
+  header = "includeHeader=true"
+  
+  latLon = lapply(seq_along(City), function(i){
+  
+    # define parameters
+    city = paste("city=", City[i], sep = "")
+    state = paste("state=", State[i], sep = "")
+    
+    options = paste(apiKey, version, city, state, format, header, sep = "&")
+    
+    # query API
+    results = fread(paste0(baseQuery, options), verbose = FALSE,
+                    showProgress = FALSE)
+    
+    # return latitude and longitude
+    return(c(results$Latitude, results$Longitude))
+  })
+  
+  return(setNames(transpose(latLon), c("Latitude", "Longitude")))
+
+}
+
+# we can transpose the list to make it cleaner
+(coords = getCoords(cityState[[1]], cityState[[2]]))
+```
+
+Now that we have our latitude and logitudes, we can update the data.table `to_fill` and bind the rows back to the shootings data.table.
+
+```{r}
+# fill latitude and logitude
+to_fill[, (c("Latitude", "Longitude")) := coords]
+
+# bind to shootings and order by date
+shootings = rbind(shootings, to_fill)[order(Date)]
+```
+
+I'm not too worried about the one missing summary, but let's take a look at the missing race and gender observations
+
+```{r}
+shootings[is.na(Race) | is.na(Gender), !"Summary"]
+```
+
+The las vegas shooting involved a male, so we can fill that in. The Race we will leave as NA for now
+
+```{r}
+shootings[is.na(Gender), Gender := "M"]
+```
+
+## Visualizing Shootings
+
+The `ggmap` and `plotly` packages will be used for geographical plotting.
+
+Initially, let's look at a simple map of all the shootings in the dataset.
+
+```{r, message=FALSE}
+qmplot(Longitude, Latitude,
+       data = shootings, maptype = "toner-lite")
+```
+
+Here we see that there appears to be one incident in Alaska and one in Hawaii, which is why the map is do zoomed out. One point (bottom right of map) looks to be in the ocean. Let's investigate.
+
+```{r}
+shootings[Longitude > -25, !"Summary"]
+```
+
+There must be an error as Fort Hood definitely does not have coordinates of (0, 0)! This could be a security feature as the API I called returned (0, 0) and Google Maps tends to block out the map of Fort Hood! We can use another observation since there are multiple entries for Fort Hood
+
+```{r}
+Loc = shootings[Location == "Fort Hood, Texas" & Latitude > 0][1]
+Loc = Loc[,.(Latitude, Longitude)]
+
+shootings[Longitude > -25, `:=`(Latitude = Loc$Latitude,
+                                Longitude = Loc$Longitude)]
+
+shootings[Location == "Fort Hood, Texas"]
+```
+
+Great! Our map should look better now.
+
+```{r, message = FALSE}
+qmplot(Longitude, Latitude,
+       data = shootings, maptype = "toner-lite")
+```
+
+It may make our analysis easier if we remove the incidents from AK and HI.
+
+```{r}
+shootings = shootings[!(grepl("Hawaii", Location, fixed = TRUE) | 
+                          grepl("Alaska", Location, fixed = TRUE))]
+```
+
+```{r, message = FALSE}
+qmplot(Longitude, Latitude,
+       data = shootings, maptype = "toner-lite")
+```
+
+
+I think we are now able to get a good picture of the lower 48 US States!
+
+
+```{r, eval = FALSE, include = FALSE}
+us = c(left = -125, bottom = 25.75, right = -67, top = 49)
+map = get_stamenmap(us, zoom = 5, maptype = "toner",
+                    messaging = FALSE)
+ggmap(map)
 
 ```
+
+
 
