@@ -301,7 +301,9 @@ Although the graphic is not perfect due to the sparsity of data outside of Seatt
 
 ## Plotly Interactive Maps
 
-```{r, message=FALSE}
+Example code is below. The map is not shown as it can only be used in an html format (which this .md file is not)
+
+```{r, message=FALSE, eval = FALSE}
 
 # geo styling
 g <- list(
@@ -315,6 +317,7 @@ g <- list(
   subunitwidth = 0.5
 )
 
+# make plot and hover information
 p <- plot_geo(shootings, lat = ~Latitude, lon = ~Longitude) %>%
   add_markers(
     text = ~paste(Title, Location, Date, paste("Deaths:", Fatalities),
@@ -322,26 +325,20 @@ p <- plot_geo(shootings, lat = ~Latitude, lon = ~Longitude) %>%
     hoverinfo = "text"
   ) %>%
   layout(
-    title = 'US Mass Shootings<br />(Hover for airport)', geo = g
+    title = 'US Mass Shootings<br />(Hover for info)', geo = g
   )
+
+# show plot
 p
-
-
 ```
 
 
 ## Future Ideas
 
-* Continue to use plotly to create interactive maps. We could show information on each shooting when a cursor hovers over it. 
+* Use plotly to create interactive maps. We could show information on each shooting when a cursor hovers over it and much more given the time. 
 * Create a Google Maps API key to overlay points on Google Maps, which would show more detail. 
 
-*Some of the ideas and methods from this analysis were taken from the [ggmap github page](https://github.com/dkahle/ggmap). Thank you for great examples!*
+*Some of the ideas and methods from this analysis were adapted from the [ggmap github page](https://github.com/dkahle/ggmap) and [this plotly tutorial](https://plot.ly/r/scatter-plots-on-maps/). Thank you for great examples!*
 
 **This short analysis has been an exercise in plotting spatial data. Please let me know if you have any suggestions. I'm always interested in better and more efficient programming practices!**
-
-***
-
-Below is a short test of using plotly within a github_document
-
-
 
